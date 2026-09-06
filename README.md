@@ -1,6 +1,6 @@
 # Hierarchy
 
-A vibe-coded (mostly done with DS V4 Flash 0731) hierarchic outliner for. Everything runs locally in the browser in a single `index.html` file.
+A vibe-coded (mostly done with DS V4 Flash 0731) hierarchic outliner. Everything runs locally in the browser in a single `index.html` file.
 
 ## Getting started
 
