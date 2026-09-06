@@ -718,7 +718,8 @@
       newItem.contentEditable = 'true';
       const depth = parseInt(currentItem.dataset.depth, 10) || 0;
       if (depth) newItem.dataset.depth = depth;
-      currentItem.after(newItem);
+      const block = blockOf(currentItem);
+      block[block.length - 1].after(newItem);
       updateVisibility();
 
       const selection = window.getSelection();
