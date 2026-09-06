@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hierarchy</title>
+  <style>
+    html {
+      scrollbar-gutter: stable;
+    }
+    body {
+      box-sizing: border-box;
+      font-family: math, "Cambria Math", "STIX Two Math", serif;
+      max-width: 1024px;
+      min-width: 300px;
+      margin: 0 auto;
+      min-height: 100vh;
+      background: #ffffff;
+      /* box-shadow: 0 0 24px rgba(0, 0, 0, 0.12); */
+      padding: 28px 36px;
+      color: #1a1a1a;
+    }
+    h1 {
+      font-size: 1.6em;
+      font-weight: 600;
+      margin: 8px 0 16px;
+      color: #111;
+    }
+    .selected {
+      background-image: linear-gradient(rgba(140, 168, 224, 0.32), rgba(140, 168, 224, 0.32));
+    }
+    #list li[data-color] {
+      --color-base: #fff0e6;
+      background-color: var(--color-base);
+    }
+    #list li[data-color="1"] { --color-base: #ffe3e3; }
+    #list li[data-color="2"] { --color-base: #ffe9c7; }
+    #list li[data-color="3"] { --color-base: #fff3bf; }
+    #list li[data-color="4"] { --color-base: #d8f5d6; }
+    #list li[data-color="5"] { --color-base: #cdf0f2; }
+    #list li[data-color="6"] { --color-base: #d4e6ff; }
+    #list li[data-color="7"] { --color-base: #e7dcff; }
+    #list li[data-color="8"] { --color-base: #ffd9ea; }
+    #list li[data-color="9"] { --color-base: #fff1f0; }
+    #list {
+      list-style-position: outside;
+      padding-left: 20px;
+      margin: 0;
+    }
+    #list li {
+      line-height: 1.7;
+      padding: 2px 6px;
+      margin-left: 0;
+      border-radius: 3px;
+    }
+    #list li:hover {
+      background-image: linear-gradient(rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.06));
+    }
+    #list li:focus {
+      outline: none;
+      background-image: linear-gradient(rgba(140, 168, 224, 0.42), rgba(140, 168, 224, 0.42));
+    }
+    li.collapsed {
+      list-style: none;
+      position: relative;
+    }
+    li.collapsed::before {
+      content: "▸";
+      position: absolute;
+      left: -17px;
+      top: 7px;
+      font-size: 18px;
+      line-height: 1;
+    }
+    #breadcrumb {
+      font-size: 14px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+    #breadcrumb .crumb {
+      cursor: pointer;
+    }
+    #breadcrumb .crumb:hover {
+      text-decoration: underline;
+    }
+    #breadcrumb .crumb[data-active] {
+      color: #000;
+      font-weight: bold;
+      cursor: default;
+    }
+    #breadcrumb .crumb[data-active]:hover {
+      text-decoration: none;
+    }
+    #breadcrumb .separator {
+      margin: 0 4px;
+      color: #bbb;
+    }
+    #breadcrumb .separator:last-child {
+      display: none;
+    }
+    #toolbar {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 12px;
+    }
+    #toolbar button {
+      font-family: inherit;
+      font-size: 13px;
+      padding: 4px 12px;
+      margin-left: 6px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fafafa;
+      color: #333;
+      cursor: pointer;
+    }
+    #toolbar button:hover {
+      background: #eef4ff;
+      border-color: #9cc;
+    }
+    #help-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    #help-overlay[hidden] {
+      display: none;
+    }
+    #help-dialog {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+      padding: 20px 24px;
+      max-width: 520px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    #help-dialog h2 {
+      margin: 0 0 12px;
+      font-size: 1.2em;
+    }
+    #help-dialog table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    #help-dialog td {
+      padding: 5px 8px;
+      border-bottom: 1px solid #eee;
+      vertical-align: top;
+    }
+    #help-dialog td:first-child {
+      white-space: nowrap;
+      text-align: right;
+      color: #333;
+    }
+    #help-dialog kbd {
+      font-family: math, serif;
+      font-size: 0.9em;
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      border-bottom-width: 2px;
+      border-radius: 3px;
+      padding: 1px 5px;
+    }
+    #help-close {
+      display: block;
+      margin: 14px 0 0 auto;
+      font-family: inherit;
+      font-size: 13px;
+      padding: 5px 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fafafa;
+      cursor: pointer;
+    }
+    #help-close:hover {
+      background: #eef4ff;
+    }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <button id="help-btn" title="Keyboard shortcuts">?</button>
+    <input type="file" id="import-file" accept="application/json,.json" hidden>
+  </div>
+  <nav id="breadcrumb"></nav>
+  <h1 id="title">Hierarchy</h1>
+  <ul id="list">
+    <li contenteditable="true">...</li>
+  </ul>
+  <div id="help-overlay" hidden>
+    <div id="help-dialog">
+      <h2>Keyboard shortcuts</h2>
+      <table>
+        <tr><td><kbd>Enter</kbd></td><td>Create new item below</td></tr>
+        <tr><td><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></td><td>Indent / outdent item</td></tr>
+        <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Jump to previous / next item</td></tr>
+        <tr><td><kbd>Shift</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd></td><td>Mark items</td></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd></td><td>Move item (with children) up / down</td></tr>
+        <tr><td><kbd>Alt</kbd>+<kbd>→</kbd> / <kbd>←</kbd></td><td>Zoom into / out of an item</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>.</kbd></td><td>Collapse / expand item</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Del</kbd></td><td>Delete item (incl. children)</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>Import list</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Export list</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd></td><td>Show this help dialog</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>M</kbd> then <kbd>1</kbd>–<kbd>9</kbd></td><td>Color item or all marked items</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>M</kbd> then same number</td><td>Remove color</td></tr>
+      </table>
+      <button id="help-close">Close</button>
+    </div>
+  </div>
+  <script>
+    const list = document.getElementById('list');
+
+    let anchorItem = null;
+    let zoomStack = [];
+    let colorMode = false;
+    let colorTimer = null;
+
+    function colorModeOff() {
+      colorMode = false;
+      if (colorTimer) { clearTimeout(colorTimer); colorTimer = null; }
+    }
+
+    function toggleColor(n) {
+      const marked = Array.from(list.querySelectorAll('.selected'));
+      let targets = marked.length
+        ? marked
+        : [document.activeElement && document.activeElement.closest('li')];
+      targets = targets.filter(Boolean);
+      if (!targets.length) return;
+      const key = String(n);
+      const allSame = targets.every(li => li.dataset.color === key);
+      targets.forEach(li => {
+        if (allSame) delete li.dataset.color;
+        else li.dataset.color = key;
+      });
+    }
+
+    function zoomNode() {
+      return zoomStack.length ? zoomStack[zoomStack.length - 1] : null;
+    }
+
+    function pathOf(li) {
+      const path = [];
+      let node = li;
+      while (node) {
+        const d = parseInt(node.dataset.depth, 10) || 0;
+        path.unshift(node);
+        if (d === 0) break;
+        let prev = node.previousElementSibling;
+        while (prev && (parseInt(prev.dataset.depth, 10) || 0) >= d) prev = prev.previousElementSibling;
+        node = prev;
+      }
+      return path;
+    }
+
+    function updateTitle() {
+      const z = zoomNode();
+      const title = z ? z.textContent.trim() : 'Hierarchy';
+      document.title = title;
+      document.getElementById('title').textContent = title;
+      updateBreadcrumb();
+    }
+
+    function updateBreadcrumb() {
+      const bc = document.getElementById('breadcrumb');
+      bc.innerHTML = '';
+      const count = zoomStack.length;
+      const add = (text, level) => {
+        if (level > 0) {
+          const separator = document.createElement('span');
+          separator.className = 'separator';
+          separator.textContent = '›';
+          bc.appendChild(separator);
+        }
+        const crumb = document.createElement('span');
+        crumb.className = 'crumb';
+        crumb.textContent = text;
+        crumb.dataset.level = level;
+        if (level === count) crumb.dataset.active = '';
+        bc.appendChild(crumb);
+      };
+      add('Hierarchy', 0);
+      zoomStack.forEach((node, i) => add(node.textContent.trim() || '(empty)', i + 1));
+    }
+
+    document.getElementById('breadcrumb').addEventListener('click', (e) => {
+      const crumb = e.target.closest('.crumb');
+      if (!crumb) return;
+      const level = parseInt(crumb.dataset.level, 10);
+      if (level === zoomStack.length) return;
+      zoomStack.length = level;
+      updateVisibility();
+      updateTitle();
+      for (const li of allItems()) {
+        if (li.style.display !== 'none') {
+          setFocus(li, true);
+          break;
+        }
+      }
+    });
+
+    function allItems() {
+      return Array.from(list.children);
+    }
+
+    function clearSelection() {
+      list.querySelectorAll('.selected').forEach(li => li.classList.remove('selected'));
+    }
+
+    function setSelection(start, end) {
+      clearSelection();
+      const items = allItems();
+      const startIndex = items.indexOf(start);
+      const endIndex = items.indexOf(end);
+      const min = Math.min(startIndex, endIndex);
+      const max = Math.max(startIndex, endIndex);
+      const level = parseInt(start.dataset.depth, 10) || 0;
+      const selected = new Set();
+      items.slice(min, max + 1).forEach(li => {
+        if ((parseInt(li.dataset.depth, 10) || 0) === level) {
+          blockOf(li).forEach(n => selected.add(n));
+        }
+      });
+      items.forEach(li => {
+        if (selected.has(li)) li.classList.add('selected');
+      });
+    }
+
+    function setFocus(li, beginning) {
+      li.focus();
+      const range = document.createRange();
+      range.selectNodeContents(li);
+      range.collapse(beginning);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+
+    function ensureEmptyEntry() {
+      const z = zoomNode();
+      if (z) {
+        if (blockOf(z).slice(1).length > 0) return null;
+        const newItem = document.createElement('li');
+        newItem.contentEditable = 'true';
+        const depth = (parseInt(z.dataset.depth, 10) || 0) + 1;
+        newItem.dataset.depth = depth;
+        z.after(newItem);
+        updateVisibility();
+        return newItem;
+      }
+      if (list.children.length > 0) return null;
+      const newItem = document.createElement('li');
+      newItem.contentEditable = 'true';
+      list.appendChild(newItem);
+      return newItem;
+    }
+
+    function indent(li) {
+      const current = parseInt(li.dataset.depth, 10) || 0;
+      const previous = li.previousElementSibling;
+      const previousDepth = previous ? (parseInt(previous.dataset.depth, 10) || 0) : -1;
+      const depth = Math.min(current + 1, Math.max(0, previousDepth + 1));
+      if (depth === current) return;
+      li.dataset.depth = depth;
+      li.style.marginLeft = (depth * 24) + 'px';
+      setFocus(li, false);
+    }
+
+    function outdent(li) {
+      const depth = Math.max(0, (parseInt(li.dataset.depth, 10) || 0) - 1);
+      if (depth === 0) {
+        delete li.dataset.depth;
+        li.style.marginLeft = '';
+      } else {
+        li.dataset.depth = depth;
+        li.style.marginLeft = (depth * 24) + 'px';
+      }
+      setFocus(li, true);
+    }
+
+    function childrenOf(li) {
+      const depth = parseInt(li.dataset.depth, 10) || 0;
+      const children = [];
+      let node = li.nextElementSibling;
+      while (node && (parseInt(node.dataset.depth, 10) || 0) > depth) {
+        children.push(node);
+        node = node.nextElementSibling;
+      }
+      return children;
+    }
+
+    function blockOf(li) {
+      return [li, ...childrenOf(li)];
+    }
+
+    function deleteAndFocus(toDelete) {
+      const deleteSet = new Set(toDelete);
+      let previous = toDelete[0].previousElementSibling;
+      while (previous && deleteSet.has(previous)) previous = previous.previousElementSibling;
+      let next = toDelete[toDelete.length - 1].nextElementSibling;
+      while (next && deleteSet.has(next)) next = next.nextElementSibling;
+      toDelete.forEach(li => li.remove());
+      const target = previous || next || ensureEmptyEntry();
+      if (target) setFocus(target, !previous);
+    }
+
+    function updateVisibility() {
+      const z = zoomNode();
+      const base = z ? (parseInt(z.dataset.depth, 10) || 0) + 1 : 0;
+      const zoomSet = z ? new Set(blockOf(z).slice(1)) : null;
+      const stack = [];
+      allItems().forEach(li => {
+        const depth = parseInt(li.dataset.depth, 10) || 0;
+        if (li === z) stack.length = 0;
+        while (stack.length && stack[stack.length - 1].depth >= depth) stack.pop();
+        const hidden = (zoomSet && !zoomSet.has(li)) || stack.some(a => a.collapsed);
+        li.style.display = hidden ? 'none' : '';
+        if (li !== z) {
+          const relative = depth - base;
+          li.style.marginLeft = (relative * 24) + 'px';
+          stack.push({ depth, collapsed: li.classList.contains('collapsed') });
+        }
+      });
+    }
+
+    function nextVisible(li) {
+      let node = li.nextElementSibling;
+      while (node && node.style.display === 'none') node = node.nextElementSibling;
+      return node;
+    }
+
+    function previousVisible(li) {
+      let node = li.previousElementSibling;
+      while (node && node.style.display === 'none') node = node.previousElementSibling;
+      return node;
+    }
+
+    function previousVisibleAtDepth(li, depth) {
+      let node = li.previousElementSibling;
+      while (node) {
+        const nt = parseInt(node.dataset.depth, 10) || 0;
+        if (nt < depth) return null;
+        if (nt === depth && node.style.display !== 'none') return node;
+        node = node.previousElementSibling;
+      }
+      return null;
+    }
+
+    function nextVisibleAtDepth(li, depth) {
+      let node = li.nextElementSibling;
+      while (node) {
+        const nt = parseInt(node.dataset.depth, 10) || 0;
+        if (nt < depth) return null;
+        if (nt === depth && node.style.display !== 'none') return node;
+        node = node.nextElementSibling;
+      }
+      return null;
+    }
+
+    function parentOf(li) {
+      const depth = parseInt(li.dataset.depth, 10) || 0;
+      if (depth === 0) return null;
+      let node = li.previousElementSibling;
+      while (node) {
+        const nt = parseInt(node.dataset.depth, 10) || 0;
+        if (nt < depth) return node;
+        node = node.previousElementSibling;
+      }
+      return null;
+    }
+
+    function allDirectChildrenSelected(parent, extras) {
+      const childDepth = (parseInt(parent.dataset.depth, 10) || 0) + 1;
+      const kids = childrenOf(parent).filter(c => (parseInt(c.dataset.depth, 10) || 0) === childDepth);
+      return kids.length > 0 && kids.every(k => k.classList.contains('selected') || extras.has(k));
+    }
+
+    function previousSibling(li) {
+      const depth = parseInt(li.dataset.depth, 10) || 0;
+      let node = li.previousElementSibling;
+      while (node) {
+        const nt = parseInt(node.dataset.depth, 10) || 0;
+        if (nt === depth) return node;
+        if (nt < depth) return null;
+        node = node.previousElementSibling;
+      }
+      return null;
+    }
+
+    function nextAtDepth(li, depth) {
+      let node = li.nextElementSibling;
+      while (node) {
+        const nt = parseInt(node.dataset.depth, 10) || 0;
+        if (nt === depth) return node;
+        if (nt < depth) return null;
+        node = node.nextElementSibling;
+      }
+      return null;
+    }
+
+    function moveBlock(block, direction) {
+      const first = block[0];
+      const last = block[block.length - 1];
+      const firstDepth = parseInt(first.dataset.depth, 10) || 0;
+
+      if (direction === 'up') {
+        const target = previousSibling(first);
+        if (!target) return null;
+        const range = document.createRange();
+        range.setStartBefore(first);
+        range.setEndAfter(last);
+        const fragment = range.extractContents();
+        target.before(fragment);
+      } else {
+        const target = nextAtDepth(last, firstDepth);
+        if (!target) return null;
+        const targetBlock = blockOf(target);
+        const targetEnd = targetBlock[targetBlock.length - 1];
+        const range = document.createRange();
+        range.setStartBefore(first);
+        range.setEndAfter(last);
+        const fragment = range.extractContents();
+        targetEnd.after(fragment);
+      }
+      return block;
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        document.getElementById('import-file').click();
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') {
+        e.preventDefault();
+        helpOverlay.hidden = false;
+        return;
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        exportList();
+        return;
+      }
+
+      if (e.altKey && e.key === 'ArrowRight') {
+        e.preventDefault();
+        const currentItem = e.target.closest('li');
+        if (!currentItem || !childrenOf(currentItem).length) return;
+        zoomStack = pathOf(currentItem);
+        updateVisibility();
+        updateTitle();
+        let first = null;
+        for (const li of allItems()) {
+          if (li.style.display !== 'none') {
+            first = li;
+            break;
+          }
+        }
+        if (!first) first = ensureEmptyEntry();
+        if (first) setFocus(first, true);
+        return;
+      }
+
+      if (e.altKey && e.key === 'ArrowLeft') {
+        e.preventDefault();
+        if (!zoomStack.length) return;
+        zoomStack.pop();
+        updateVisibility();
+        updateTitle();
+        for (const li of allItems()) {
+          if (li.style.display !== 'none') {
+            setFocus(li, true);
+            break;
+          }
+        }
+        return;
+      }
+    });
+
+    list.addEventListener('keydown', (e) => {
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'm') {
+        e.preventDefault();
+        colorModeOff();
+        colorMode = true;
+        colorTimer = setTimeout(colorModeOff, 1500);
+        return;
+      }
+
+      if (colorMode && /^[1-9]$/.test(e.key)) {
+        e.preventDefault();
+        colorModeOff();
+        toggleColor(parseInt(e.key, 10));
+        return;
+      }
+
+      if (colorMode && !e.ctrlKey && !e.metaKey && !e.altKey && !e.shiftKey) {
+        colorModeOff();
+      }
+
+      if (e.ctrlKey && e.key === '.') {
+        e.preventDefault();
+        const currentItem = e.target.closest('li');
+        if (!childrenOf(currentItem).length) return;
+        currentItem.classList.toggle('collapsed');
+        updateVisibility();
+        return;
+      }
+
+      if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault();
+        const currentItem = e.target.closest('li');
+        const marked = Array.from(list.querySelectorAll('.selected'));
+
+        if (marked.length) {
+          const items = allItems();
+          const firstIndex = items.indexOf(marked[0]);
+          const lastIndex = items.indexOf(marked[marked.length - 1]);
+          const block = items.slice(Math.min(firstIndex, lastIndex), Math.max(firstIndex, lastIndex) + 1);
+          const direction = e.key === 'ArrowUp' ? 'up' : 'down';
+          if (moveBlock(block, direction)) {
+            if (direction === 'up') setFocus(marked[marked.length - 1], true);
+            else setFocus(marked[0], true);
+          }
+        } else {
+          const block = moveBlock(blockOf(currentItem), e.key === 'ArrowUp' ? 'up' : 'down');
+          if (block) setFocus(currentItem, true);
+        }
+        updateVisibility();
+        return;
+      }
+
+      if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault();
+        const currentItem = e.target.closest('li');
+        if (anchorItem === null) anchorItem = currentItem;
+        const level = parseInt(anchorItem.dataset.depth, 10) || 0;
+        let target = e.key === 'ArrowUp'
+          ? previousVisibleAtDepth(currentItem, level)
+          : nextVisibleAtDepth(currentItem, level);
+
+        const extras = new Set([currentItem, anchorItem].filter(Boolean));
+        const parent = parentOf(anchorItem);
+        if (parent && parent.style.display !== 'none' && allDirectChildrenSelected(parent, extras)) {
+          if (!target || target.classList.contains('selected') || extras.has(target)) {
+            anchorItem = parent;
+            target = parent;
+          }
+        }
+
+        if (!target) return;
+        setFocus(target, e.key === 'ArrowDown');
+        setSelection(anchorItem, target);
+        return;
+      }
+
+      if (!e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+        e.preventDefault();
+        const currentItem = e.target.closest('li');
+        const target = e.key === 'ArrowUp'
+          ? previousVisible(currentItem)
+          : nextVisible(currentItem);
+        if (target) setFocus(target, e.key === 'ArrowDown');
+        clearSelection();
+        anchorItem = null;
+        return;
+      }
+
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const currentItem = e.target.closest('li');
+        const marked = Array.from(list.querySelectorAll('.selected'));
+        const targetItems = marked.length ? marked : [currentItem];
+
+        if (e.shiftKey) {
+          targetItems.forEach(li => outdent(li));
+        } else {
+          targetItems.forEach(li => indent(li));
+        }
+        updateVisibility();
+        return;
+      }
+
+      if ((e.key === 'Delete') && (e.ctrlKey || Array.from(list.querySelectorAll('.selected')).length)) {
+        e.preventDefault();
+        const currentItem = e.target.closest('li');
+        const marked = Array.from(list.querySelectorAll('.selected'));
+        if (marked.length) {
+          const set = new Set();
+          marked.forEach(li => blockOf(li).forEach(k => set.add(k)));
+          const items = allItems();
+          const pos = new Map(items.map((li, i) => [li, i]));
+          const toDelete = Array.from(set).sort((a, b) => pos.get(a) - pos.get(b));
+          deleteAndFocus(toDelete);
+        } else {
+          deleteAndFocus(blockOf(currentItem));
+        }
+        anchorItem = null;
+        updateVisibility();
+        return;
+      }
+
+      if (e.key !== 'Enter' || e.shiftKey) return;
+      e.preventDefault();
+
+      const currentItem = e.target.closest('li');
+
+      const newItem = document.createElement('li');
+      newItem.contentEditable = 'true';
+      const depth = parseInt(currentItem.dataset.depth, 10) || 0;
+      if (depth) newItem.dataset.depth = depth;
+      currentItem.after(newItem);
+      updateVisibility();
+
+      const selection = window.getSelection();
+      const newRange = document.createRange();
+      newRange.setStart(newItem, 0);
+      newRange.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(newRange);
+      clearSelection();
+      anchorItem = null;
+    });
+
+    updateTitle();
+
+    function exportList() {
+      const data = allItems().map(li => ({
+        text: li.textContent,
+        depth: parseInt(li.dataset.depth, 10) || 0,
+        collapsed: li.classList.contains('collapsed'),
+        color: li.dataset.color || ''
+      }));
+      const blob = new Blob([JSON.stringify({ items: data }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'hierarchy.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importList(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const data = JSON.parse(reader.result);
+          if (!data.items || !Array.isArray(data.items)) throw new Error('Not a valid list format');
+          list.innerHTML = '';
+          data.items.forEach(item => {
+            const li = document.createElement('li');
+            li.contentEditable = 'true';
+            li.textContent = item.text || '';
+            const depth = parseInt(item.depth ?? item.tiefe, 10) || 0;
+            if (depth) li.dataset.depth = depth;
+            if (item.collapsed ?? item.eingeklappt) li.classList.add('collapsed');
+            if (item.color ?? item.farbe) li.dataset.color = item.color ?? item.farbe;
+            list.appendChild(li);
+          });
+          zoomStack.length = 0;
+          anchorItem = null;
+          clearSelection();
+          updateVisibility();
+          updateTitle();
+        } catch (err) {
+          alert('Import failed: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    document.getElementById('import-file').addEventListener('change', (e) => {
+      if (e.target.files[0]) importList(e.target.files[0]);
+      e.target.value = '';
+    });
+
+    const helpOverlay = document.getElementById('help-overlay');
+    document.getElementById('help-btn').addEventListener('click', () => { helpOverlay.hidden = false; });
+    document.getElementById('help-close').addEventListener('click', () => { helpOverlay.hidden = true; });
+    helpOverlay.addEventListener('click', (e) => {
+      if (e.target === helpOverlay) helpOverlay.hidden = true;
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !helpOverlay.hidden) {
+        e.preventDefault();
+        helpOverlay.hidden = true;
+      }
+    });
+  </script>
+</body>
+</html>
