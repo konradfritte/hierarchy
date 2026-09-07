@@ -538,26 +538,30 @@
       return newItem;
     }
 
+    function setDepth(li, depth) {
+      if (depth <= 0) delete li.dataset.depth;
+      else li.dataset.depth = depth;
+    }
+
     function indent(li) {
+      const block = blockOf(li);
       const current = parseInt(li.dataset.depth, 10) || 0;
       const previous = li.previousElementSibling;
       const previousDepth = previous ? (parseInt(previous.dataset.depth, 10) || 0) : -1;
       const depth = Math.min(current + 1, Math.max(0, previousDepth + 1));
       if (depth === current) return;
-      li.dataset.depth = depth;
-      li.style.marginLeft = (depth * 24) + 'px';
+      const delta = depth - current;
+      block.forEach(node => setDepth(node, (parseInt(node.dataset.depth, 10) || 0) + delta));
       setFocus(li, false);
     }
 
     function outdent(li) {
-      const depth = Math.max(0, (parseInt(li.dataset.depth, 10) || 0) - 1);
-      if (depth === 0) {
-        delete li.dataset.depth;
-        li.style.marginLeft = '';
-      } else {
-        li.dataset.depth = depth;
-        li.style.marginLeft = (depth * 24) + 'px';
-      }
+      const block = blockOf(li);
+      const current = parseInt(li.dataset.depth, 10) || 0;
+      const depth = Math.max(0, current - 1);
+      if (depth === current) return;
+      const delta = depth - current;
+      block.forEach(node => setDepth(node, (parseInt(node.dataset.depth, 10) || 0) + delta));
       setFocus(li, true);
     }
 
@@ -875,12 +879,21 @@
         e.preventDefault();
         const currentItem = e.target.closest('li');
         const marked = Array.from(list.querySelectorAll('.selected'));
-        const targetItems = marked.length ? marked : [currentItem];
+        let targets;
+        if (marked.length) {
+          const markedSet = new Set(marked);
+          targets = marked.filter(li => {
+            const parent = parentOf(li);
+            return !(parent && markedSet.has(parent));
+          });
+        } else {
+          targets = [currentItem];
+        }
 
         if (e.shiftKey) {
-          targetItems.forEach(li => outdent(li));
+          targets.forEach(li => outdent(li));
         } else {
-          targetItems.forEach(li => indent(li));
+          targets.forEach(li => indent(li));
         }
         updateVisibility();
         return;
