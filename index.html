@@ -205,11 +205,11 @@
         <tr><td><kbd>Enter</kbd></td><td>Create new item below</td></tr>
         <tr><td><kbd>Tab</kbd> / <kbd>Shift</kbd>+<kbd>Tab</kbd></td><td>Indent / outdent item</td></tr>
         <tr><td><kbd>↑</kbd> / <kbd>↓</kbd></td><td>Jump to previous / next item</td></tr>
-        <tr><td><kbd>Shift</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd></td><td>Mark items</td></tr>
+        <tr><td><kbd>Shift</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd></td><td>Mark items; inside an item, select text</td></tr>
         <tr><td><kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd></td><td>Move item (with children) up / down</td></tr>
         <tr><td><kbd>Alt</kbd>+<kbd>→</kbd> / <kbd>←</kbd></td><td>Zoom into / out of an item</td></tr>
         <tr><td><kbd>Ctrl</kbd>+<kbd>.</kbd></td><td>Collapse / expand item</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>Backspace</kbd> / <kbd>Del</kbd></td><td>Delete item (incl. children)</td></tr>
+        <tr><td><kbd>Del</kbd> / <kbd>Ctrl</kbd>+<kbd>Del</kbd></td><td>Delete marked or empty items (on text level, delete text)</td></tr>
         <tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>Insert math (wrap selection in <kbd>$...$</kbd>)</td></tr>
         <tr><td><kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>Import list</td></tr>
         <tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Export list</td></tr>
@@ -434,6 +434,66 @@
         delete li.dataset.raw;
         li.innerHTML = escapeHtml(raw).replace(/\n/g, '<br>');
       }
+    }
+
+    function distinctTops(range) {
+      const tops = new Set();
+      for (const r of range.getClientRects()) tops.add(Math.round(r.top));
+      return tops.size;
+    }
+
+    function isMultiline(li) {
+      const r = document.createRange();
+      r.selectNodeContents(li);
+      return distinctTops(r) > 1;
+    }
+
+    function cursorOnFirstLine(li) {
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return true;
+      const r = document.createRange();
+      r.selectNodeContents(li);
+      r.setEnd(sel.getRangeAt(0).startContainer, sel.getRangeAt(0).startOffset);
+      return distinctTops(r) <= 1;
+    }
+
+    function cursorOnLastLine(li) {
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return true;
+      const r = document.createRange();
+      r.selectNodeContents(li);
+      r.setStart(sel.getRangeAt(0).endContainer, sel.getRangeAt(0).endOffset);
+      return distinctTops(r) <= 1;
+    }
+
+    function selectionReachesStart(li) {
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return false;
+      const r = document.createRange();
+      r.selectNodeContents(li);
+      r.setEnd(sel.getRangeAt(0).startContainer, sel.getRangeAt(0).startOffset);
+      return r.toString() === '';
+    }
+
+    function selectionReachesEnd(li) {
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return false;
+      const r = document.createRange();
+      r.selectNodeContents(li);
+      r.setStart(sel.getRangeAt(0).endContainer, sel.getRangeAt(0).endOffset);
+      return r.toString() === '';
+    }
+
+    function selectToEdge(li, edge) {
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return;
+      const range = sel.getRangeAt(0).cloneRange();
+      const full = document.createRange();
+      full.selectNodeContents(li);
+      if (edge === 'end') range.setEnd(full.endContainer, full.endOffset);
+      else range.setStart(full.startContainer, full.startOffset);
+      sel.removeAllRanges();
+      sel.addRange(range);
     }
 
     list.addEventListener('focusin', (e) => {
@@ -748,8 +808,20 @@
       }
 
       if (e.shiftKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-        e.preventDefault();
         const currentItem = e.target.closest('li');
+        const marking = list.querySelector('.selected');
+        const goingUp = e.key === 'ArrowUp';
+        if (!marking) {
+          if (goingUp && isMultiline(currentItem) && !cursorOnFirstLine(currentItem)) return;
+          if (!goingUp && isMultiline(currentItem) && !cursorOnLastLine(currentItem)) return;
+          const atEdge = goingUp ? selectionReachesStart(currentItem) : selectionReachesEnd(currentItem);
+          if (!atEdge) {
+            e.preventDefault();
+            selectToEdge(currentItem, goingUp ? 'start' : 'end');
+            return;
+          }
+        }
+        e.preventDefault();
         if (anchorItem === null) anchorItem = currentItem;
         const level = parseInt(anchorItem.dataset.depth, 10) || 0;
         let target = e.key === 'ArrowUp'
@@ -772,8 +844,10 @@
       }
 
       if (!e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-        e.preventDefault();
         const currentItem = e.target.closest('li');
+        if (e.key === 'ArrowUp' && isMultiline(currentItem) && !cursorOnFirstLine(currentItem)) return;
+        if (e.key === 'ArrowDown' && isMultiline(currentItem) && !cursorOnLastLine(currentItem)) return;
+        e.preventDefault();
         const target = e.key === 'ArrowUp'
           ? previousVisible(currentItem)
           : nextVisible(currentItem);
@@ -798,24 +872,28 @@
         return;
       }
 
-      const deleteKey = e.key === 'Delete' || e.key === 'Backspace';
-      if (deleteKey && (e.ctrlKey || Array.from(list.querySelectorAll('.selected')).length)) {
+      const marked = Array.from(list.querySelectorAll('.selected'));
+      if (marked.length && (e.key === 'Delete' || e.key === 'Backspace')) {
         e.preventDefault();
-        const currentItem = e.target.closest('li');
-        const marked = Array.from(list.querySelectorAll('.selected'));
-        if (marked.length) {
-          const set = new Set();
-          marked.forEach(li => blockOf(li).forEach(k => set.add(k)));
-          const items = allItems();
-          const pos = new Map(items.map((li, i) => [li, i]));
-          const toDelete = Array.from(set).sort((a, b) => pos.get(a) - pos.get(b));
-          deleteAndFocus(toDelete);
-        } else {
-          deleteAndFocus(blockOf(currentItem));
-        }
+        const set = new Set();
+        marked.forEach(li => blockOf(li).forEach(k => set.add(k)));
+        const items = allItems();
+        const pos = new Map(items.map((li, i) => [li, i]));
+        const toDelete = Array.from(set).sort((a, b) => pos.get(a) - pos.get(b));
+        deleteAndFocus(toDelete);
         anchorItem = null;
         updateVisibility();
         return;
+      }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        const currentItem = e.target.closest('li');
+        if (currentItem && !rawTextOf(currentItem).trim()) {
+          e.preventDefault();
+          deleteAndFocus(blockOf(currentItem));
+          anchorItem = null;
+          updateVisibility();
+          return;
+        }
       }
 
       if (e.key !== 'Enter') return;
