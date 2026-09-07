@@ -7,6 +7,8 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="alternate icon" href="favicon.ico">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
   <style>
     html {
       scrollbar-gutter: stable;
@@ -208,6 +210,7 @@
         <tr><td><kbd>Alt</kbd>+<kbd>→</kbd> / <kbd>←</kbd></td><td>Zoom into / out of an item</td></tr>
         <tr><td><kbd>Ctrl</kbd>+<kbd>.</kbd></td><td>Collapse / expand item</td></tr>
         <tr><td><kbd>Ctrl</kbd>+<kbd>Backspace</kbd> / <kbd>Del</kbd></td><td>Delete item (incl. children)</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>K</kbd></td><td>Insert math (wrap selection in <kbd>$...$</kbd>)</td></tr>
         <tr><td><kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>Import list</td></tr>
         <tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Export list</td></tr>
         <tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd></td><td>Show this help dialog</td></tr>
@@ -263,11 +266,16 @@
       return path;
     }
 
+    function rawTextOf(li) {
+      return li.dataset.raw !== undefined ? li.dataset.raw : li.textContent;
+    }
+
     function updateTitle() {
       const z = zoomNode();
-      const title = z ? z.textContent.trim() : 'Hierarchy';
-      document.title = title;
-      document.getElementById('title').textContent = title;
+      const raw = z ? rawTextOf(z).trim() : '';
+      const titleEl = document.getElementById('title');
+      titleEl.innerHTML = z ? renderRichText(raw) : 'Hierarchy';
+      document.title = z ? raw : 'Hierarchy';
       updateBreadcrumb();
     }
 
@@ -284,13 +292,13 @@
         }
         const crumb = document.createElement('span');
         crumb.className = 'crumb';
-        crumb.textContent = text;
+        crumb.innerHTML = renderRichText(text);
         crumb.dataset.level = level;
         if (level === count) crumb.dataset.active = '';
         bc.appendChild(crumb);
       };
       add('Hierarchy', 0);
-      zoomStack.forEach((node, i) => add(node.textContent.trim() || '(empty)', i + 1));
+      zoomStack.forEach((node, i) => add(rawTextOf(node).trim() || '(empty)', i + 1));
     }
 
     document.getElementById('breadcrumb').addEventListener('click', (e) => {
@@ -345,6 +353,96 @@
       selection.removeAllRanges();
       selection.addRange(range);
     }
+
+    function wrapMath() {
+      const active = document.activeElement;
+      const li = active && active.closest('li');
+      if (!li) return;
+      li.focus();
+      const sel = window.getSelection();
+      if (!sel.rangeCount) return;
+      const range = sel.getRangeAt(0).cloneRange();
+      if (range.collapsed) {
+        document.execCommand('insertText', false, '$$');
+        const s = window.getSelection();
+        const r = s.getRangeAt(0).cloneRange();
+        r.setStart(s.anchorNode, Math.max(0, s.anchorOffset - 1));
+        r.collapse(true);
+        s.removeAllRanges();
+        s.addRange(r);
+        return;
+      }
+      const wrapped = '$' + range.toString() + '$';
+      range.deleteContents();
+      const tn = document.createTextNode(wrapped);
+      range.insertNode(tn);
+      const r = document.createRange();
+      r.setStart(tn, 1);
+      r.setEnd(tn, wrapped.length - 1);
+      sel.removeAllRanges();
+      sel.addRange(r);
+    }
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function renderRichText(raw) {
+      let html = '';
+      let plain = '';
+      const flush = () => {
+        if (plain) {
+          html += escapeHtml(plain);
+          plain = '';
+        }
+      };
+      let i = 0;
+      while (i < raw.length) {
+        const ch = raw[i];
+        if (ch === '\\' && i + 1 < raw.length) {
+          plain += raw[i] + raw[i + 1];
+          i += 2;
+          continue;
+        }
+        if (ch === '$') {
+          const display = raw.startsWith('$$', i);
+          const closeSeq = display ? '$$' : '$';
+          const start = i + (display ? 2 : 1);
+          const j = raw.indexOf(closeSeq, start);
+          if (j === -1) { plain += ch; i++; continue; }
+          const formula = raw.slice(start, j);
+          flush();
+          html += katex.renderToString(formula, { throwOnError: false, displayMode: display });
+          i = j + closeSeq.length;
+          continue;
+        }
+        plain += ch;
+        i++;
+      }
+      flush();
+      return html;
+    }
+
+    function renderRich(li) {
+      if (li.dataset.raw === undefined) li.dataset.raw = li.textContent;
+      li.innerHTML = renderRichText(li.dataset.raw);
+    }
+
+    function restoreRaw(li) {
+      if (li.dataset.raw !== undefined) {
+        li.textContent = li.dataset.raw;
+        delete li.dataset.raw;
+      }
+    }
+
+    list.addEventListener('focusin', (e) => {
+      const li = e.target.closest('li');
+      if (li) restoreRaw(li);
+    });
+    list.addEventListener('focusout', (e) => {
+      const li = e.target.closest('li');
+      if (li) renderRich(li);
+    });
 
     function ensureEmptyEntry() {
       const z = zoomNode();
@@ -619,6 +717,12 @@
         return;
       }
 
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        wrapMath();
+        return;
+      }
+
       if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
         e.preventDefault();
         const currentItem = e.target.closest('li');
@@ -740,7 +844,7 @@
 
     function exportList() {
       const data = allItems().map(li => ({
-        text: li.textContent,
+        text: li.dataset.raw !== undefined ? li.dataset.raw : li.textContent,
         depth: parseInt(li.dataset.depth, 10) || 0,
         collapsed: li.classList.contains('collapsed'),
         color: li.dataset.color || ''
