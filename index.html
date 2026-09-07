@@ -392,7 +392,7 @@
       let plain = '';
       const flush = () => {
         if (plain) {
-          html += escapeHtml(plain);
+          html += escapeHtml(plain).replace(/\n/g, '<br>');
           plain = '';
         }
       };
@@ -430,8 +430,9 @@
 
     function restoreRaw(li) {
       if (li.dataset.raw !== undefined) {
-        li.textContent = li.dataset.raw;
+        const raw = li.dataset.raw;
         delete li.dataset.raw;
+        li.innerHTML = escapeHtml(raw).replace(/\n/g, '<br>');
       }
     }
 
@@ -817,7 +818,7 @@
         return;
       }
 
-      if (e.key !== 'Enter' || e.shiftKey) return;
+      if (e.key !== 'Enter') return;
       e.preventDefault();
 
       const currentItem = e.target.closest('li');
