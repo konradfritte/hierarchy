@@ -207,7 +207,7 @@
         <tr><td><kbd>Alt</kbd>+<kbd>↑</kbd> / <kbd>↓</kbd></td><td>Move item (with children) up / down</td></tr>
         <tr><td><kbd>Alt</kbd>+<kbd>→</kbd> / <kbd>←</kbd></td><td>Zoom into / out of an item</td></tr>
         <tr><td><kbd>Ctrl</kbd>+<kbd>.</kbd></td><td>Collapse / expand item</td></tr>
-        <tr><td><kbd>Ctrl</kbd>+<kbd>Del</kbd></td><td>Delete item (incl. children)</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Backspace</kbd> / <kbd>Del</kbd></td><td>Delete item (incl. children)</td></tr>
         <tr><td><kbd>Ctrl</kbd>+<kbd>I</kbd></td><td>Import list</td></tr>
         <tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Export list</td></tr>
         <tr><td><kbd>Ctrl</kbd>+<kbd>H</kbd></td><td>Show this help dialog</td></tr>
@@ -693,7 +693,8 @@
         return;
       }
 
-      if ((e.key === 'Delete') && (e.ctrlKey || Array.from(list.querySelectorAll('.selected')).length)) {
+      const deleteKey = e.key === 'Delete' || e.key === 'Backspace';
+      if (deleteKey && (e.ctrlKey || Array.from(list.querySelectorAll('.selected')).length)) {
         e.preventDefault();
         const currentItem = e.target.closest('li');
         const marked = Array.from(list.querySelectorAll('.selected'));
